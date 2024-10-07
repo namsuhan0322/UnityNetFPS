@@ -9,6 +9,14 @@ public class Player : NetworkBehaviour
     [SerializeField] private NetworkPrefabRef _prefabBall;
     [Networked] private TickTimer delay { get; set; }
     [Networked] private NetworkButtons _networkButtons { get; set; }
+    
+    // ì¹´ë©”ë¼ ê´€ë ¨ ì„ ì–¸
+    public ThirdPersonCamera thirdPersonCamera;
+    [Networked] private Vector3 _networkCameraForward { get; set; }
+    [Networked] private Vector3 _networkCameraRight { get; set; }
+    [Networked] private Vector3 _networkMoveDirection { get; set; }
+    
+    public float rotationSpeed = 720.0f;
 
     private void Awake()
     {
@@ -21,31 +29,40 @@ public class Player : NetworkBehaviour
         {
             _networkButtons = data.buttons;
 
-            Vector3 moveDirection = data.direction;
-            _cc.Move(moveDirection * moveSpeed * Runner.DeltaTime);
+            _networkMoveDirection = data.direction;
 
-            if (moveDirection != Vector3.zero)
+            if (Object.HasInputAuthority)
             {
-                transform.rotation = Quaternion.LookRotation(moveDirection);
+                UpdateCameraDirection();
             }
+
+            MovePlayer(data.direction);            
         }
 
         CheckAndFireProjectile();
     }
+    
+    public override void Spawned()
+    {
+        if (Object.HasInputAuthority)
+        {
+            SetupCamera();
+        }
+    }
 
-    private void CheckAndFireProjectile()                           //Ã¼Å©ÇÏ°í ½î´Â ÇÔ¼ö
+    private void CheckAndFireProjectile()                           //Ã¼Å©ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½
     {
         if (delay.ExpiredOrNotRunning(Runner))
         {
-            if (_networkButtons.IsSet(NetworkInputData.MOUSEBUTTON0))    //¹öÆ° ¼±¾ğÇÑ°Í °¡Á®¿Í¼­ ÁøÇàÇÑ´Ù. 
+            if (_networkButtons.IsSet(NetworkInputData.MOUSEBUTTON0))    //ï¿½ï¿½Æ° ï¿½ï¿½ï¿½ï¿½ï¿½Ñ°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½. 
             {
-                delay = TickTimer.CreateFromSeconds(Runner, 0.5f);      //0.5ÃÊ °£°İÀ¸·Î ½ğ´Ù. 
+                delay = TickTimer.CreateFromSeconds(Runner, 0.5f);      //0.5ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½. 
                 FireProjectile();
             }
         }
     }
 
-    private void FireProjectile()                                   //¹ß»çÃ¼ »ı¼º ÇÔ¼ö 
+    private void FireProjectile()                                   //ï¿½ß»ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½ 
     {
         if (Object.HasStateAuthority)
         {
@@ -55,6 +72,53 @@ public class Player : NetworkBehaviour
                 Quaternion.LookRotation(forward),
                 Object.InputAuthority,
                 (runner, o) => o.GetComponent<Ball>().Init());
+        }
+    }
+
+    private void SetupCamera()
+    {
+        ThirdPersonCamera camera = FindObjectOfType<ThirdPersonCamera>();
+        if (camera != null)
+        {
+            camera.target = transform;
+            thirdPersonCamera = camera;
+        }
+        else
+        {
+            Debug.LogError("ThirdPersonCamera not found in the scene!");
+        }
+    }
+
+    private void UpdateCameraDirection()
+    {
+        if (thirdPersonCamera != null)
+        {
+            _networkCameraForward = thirdPersonCamera.transform.forward;
+            _networkCameraRight = thirdPersonCamera.transform.right;
+        }
+    }
+
+    private void MovePlayer(Vector3 moveDirection)
+    {
+        // ì¤‘ë ¥ì„ í¬í•¨í•œ ì´ë™ ë°±í„° ê³„ì‚°
+        Vector3 movement = moveDirection * moveSpeed;
+
+        if (moveDirection != Vector3.zero)
+        {
+            // NetworkCharacterControllerë¥¼ ì‚¬ìš©í•˜ì—¬ ì´ë™ (ì¤‘ë ¥ í¬í•¨)
+            _cc.Move(movement);
+            
+            // ì´ë™ ë°©í–¥ìœ¼ë¡œ íšŒì „
+            Quaternion toRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, rotationSpeed * Runner.DeltaTime);
+            
+            // ì• ë‹ˆë©”ì´ì…˜ íŒŒë¼ë¯¸í„° ì„¤ì •
+            float currentMoveSpeed = moveDirection.magnitude * moveSpeed;
+
+            if (Object.HasInputAuthority)
+            {
+                Debug.unityLogger.Log(movement);
+            }
         }
     }
 }
