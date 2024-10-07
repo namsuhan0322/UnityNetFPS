@@ -53,19 +53,19 @@ public class Player : NetworkBehaviour
         }
     }
 
-    private void CheckAndFireProjectile()                           //üũ�ϰ� ��� �Լ�
+    private void CheckAndFireProjectile()                           //체크하고 쏘는 함수
     {
         if (delay.ExpiredOrNotRunning(Runner))
         {
-            if (_networkButtons.IsSet(NetworkInputData.MOUSEBUTTON0))    //��ư �����Ѱ� �����ͼ� �����Ѵ�. 
+            if (_networkButtons.IsSet(NetworkInputData.MOUSEBUTTON0))    //버튼 선언한것 가져와서 진행한다.  
             {
-                delay = TickTimer.CreateFromSeconds(Runner, 0.5f);      //0.5�� �������� ���. 
+                delay = TickTimer.CreateFromSeconds(Runner, 0.5f);      //0.5초 간격으로 쏜다.  
                 FireProjectile();
             }
         }
     }
 
-    private void FireProjectile()                                   //�߻�ü ���� �Լ� 
+    private void FireProjectile()                                   //발사체 생성 함수  
     {
         if (Object.HasStateAuthority)
         {
