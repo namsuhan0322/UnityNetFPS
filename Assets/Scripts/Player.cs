@@ -9,7 +9,8 @@ public class Player : NetworkBehaviour
     [SerializeField] private NetworkPrefabRef _prefabBall;
     [Networked] private TickTimer delay { get; set; }
     [Networked] private NetworkButtons _networkButtons { get; set; }
-    
+    [Networked] public string CurrentState { get; set; }
+
     // 카메라 관련 선언
     public ThirdPersonCamera thirdPersonCamera;
     [Networked] private Vector3 _networkCameraForward { get; set; }
@@ -28,10 +29,14 @@ public class Player : NetworkBehaviour
 
     public override void FixedUpdateNetwork()
     {
+        if (CurrentState != "Playing")
+        {
+            return; // 플레이 중이 아니면 입력 처리하지 않음
+        }
+
         if (GetInput(out NetworkInputData data))
         {
             _networkButtons = data.buttons;
-
             _networkMoveDirection = data.direction;
 
             if (Object.HasInputAuthority)
@@ -51,6 +56,32 @@ public class Player : NetworkBehaviour
         {
             SetupCamera();
         }
+        CurrentState = "Waiting";
+    }
+
+    public void SetPlayerState(string newState)
+    {
+        CurrentState = newState;
+
+        switch (newState)
+        {
+            case "Playing":
+                // 게임 시작 시 필요한 로직
+                break;
+            case "Finished":
+                // 게임 종료 시 필요한 로직
+                break;
+            case "Spectating":
+                DisablePlayerControls();
+                break;
+        }
+    }
+
+    private void DisablePlayerControls()
+    {
+        // 플레이어 컨트롤 비활성화 로직
+        _cc.enabled = false;
+        _animator.enabled = false;
     }
 
     private void CheckAndFireProjectile()                           //체크하고 쏘는 함수
