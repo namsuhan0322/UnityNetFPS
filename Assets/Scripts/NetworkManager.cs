@@ -5,21 +5,50 @@ using System;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
+
 // NetworkManager 클래스
 public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 {
     [SerializeField] private NetworkPrefabRef _playerPrefab;
+    [SerializeField] private NetworkPrefabRef _gameManagerPrefab;
     private NetworkRunner _runner;
     private NetworkInputHandler _inputHandler;
     private string _roomName = "TestRoom"; // 기본 방 이름
     [SerializeField] private string _gameSceneName = "GameScene"; // 게임 씬 이름
-    private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
+    public Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
+
+    private static NetworkManager _instance;
+    public static NetworkManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindObjectOfType<NetworkManager>();
+                if (_instance == null)
+                {
+                    GameObject newManager = new GameObject("NetworkManager");
+                    _instance = newManager.AddComponent<NetworkManager>();
+                }
+            }
+            return _instance;
+        }
+    }
 
     private void Awake()
     {
+        if (_instance == null)
+        {
+            _instance = this;
+            DontDestroyOnLoad(gameObject);  // 씬 전환 시에도 NetworkManager가 유지되도록 함
+        }
+        else if (_instance != this)
+        {
+            Destroy(gameObject);  // 기존 인스턴스가 있으면 새로 생성된 인스턴스를 파괴
+        }
+
         _inputHandler = gameObject.AddComponent<NetworkInputHandler>();
     }
-
     private void OnGUI()
     {
         if (_runner == null)
@@ -38,6 +67,35 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
             if (GUILayout.Button("참가"))
             {
                 StartGame(GameMode.Client);
+            }
+            GUILayout.EndArea();
+        }
+        else
+        {
+            GUILayout.BeginArea(new Rect(10, 10, 300, 300));
+            if (GameManager.Instance != null && GameManager.Instance.IsGameStarted)
+            {
+                GUILayout.Label("게임 진행 중");
+            }
+            else
+            {
+                if (GUILayout.Button("Ready"))
+                {
+                    Debug.Log("Ready button clicked");
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.RPC_PlayerReady(_runner.LocalPlayer);
+                    }
+                    else
+                    {
+                        Debug.LogError("GameManager instance is null");
+                    }
+                }
+                if (GameManager.Instance != null)
+                {
+                    GUILayout.Label($"현재 플레이어 수: {GameManager.Instance.PlayerCount}");
+                    GUILayout.Label($"준비 상태: {GameManager.Instance.GetPlayerState(_runner.LocalPlayer)}");
+                }
             }
             GUILayout.EndArea();
         }
@@ -81,12 +139,43 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     {
         if (runner.IsServer)
         {
-            // 플레이어 스폰 위치 계산을 위한 새로운 로직
             Vector3 spawnPosition = GetNextSpawnPosition();
             NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
-            _spawnedCharacters.Add(player, networkPlayerObject);
+            if (networkPlayerObject != null)
+            {
+                _spawnedCharacters.Add(player, networkPlayerObject);
+            }
+            else
+            {
+                Debug.LogError("Failed to spawn player object.");
+            }
         }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PlayerJoined(player);
+        }
+
         Debug.Log($"플레이어 참가: {player}");
+    }
+
+
+    private void OnGameStart()
+    {
+        Debug.Log("Game is starting! Performing necessary actions...");
+        // 여기에 게임 시작 시 필요한 추가 로직을 구현하세요.
+        // 예: 플레이어 위치 재설정, 게임 오브젝트 활성화 등
+    }
+
+    public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
+    {
+        if (_spawnedCharacters.TryGetValue(player, out NetworkObject networkObject))
+        {
+            runner.Despawn(networkObject);
+            _spawnedCharacters.Remove(player);
+        }
+        GameManager.Instance.PlayerLeft(player);
+        Debug.Log($"플레이어 퇴장: {player}");
     }
 
     private Vector3 GetNextSpawnPosition()
@@ -99,16 +188,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
         return new Vector3(x, 1, z);
     }
 
-    public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
-    {
-        // Find and remove the players avatar
-        if (_spawnedCharacters.TryGetValue(player, out NetworkObject networkObject))
-        {
-            runner.Despawn(networkObject);
-            _spawnedCharacters.Remove(player);
-        }
-        Debug.Log($"플레이어 퇴장: {player}");
-    }
+
 
     public void OnInput(NetworkRunner runner, NetworkInput input)
     {

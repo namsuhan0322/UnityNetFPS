@@ -458,6 +458,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerPrefab:
     RawGuidValue: 261a8e2cfa556b64b80895b4011421cd
+  _gameManagerPrefab:
+    RawGuidValue: 5c0819eb129258e4496899b853924c14
   _gameSceneName: GameScene
 --- !u!4 &1318156590
 Transform:

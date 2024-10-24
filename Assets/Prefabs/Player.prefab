@@ -130,6 +130,7 @@ MonoBehaviour:
   moveSpeed: 5
   _prefabBall:
     RawGuidValue: 397d50d2de89c9f40864e7d53aa7e4fe
+  _CurrentState: 
   thirdPersonCamera: {fileID: 0}
   rotationSpeed: 720
   _animator: {fileID: 9084379547102270063}
@@ -1391,7 +1392,7 @@ MonoBehaviour:
   TotalWords: 1
   ApplyTiming: 2
   SyncSettings: 79
-  StateHashes: 00000000826db9199f6a7e5ec2c99f29e1799c8f
+  StateHashes: 0000000064f832c81c463aa9c3c737c92804bf34
   TriggerHashes: 00000000
 --- !u!1 &7830203463684231491
 GameObject:
